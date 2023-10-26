@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "XAfIU5kMJr7nnVODTbjShoRX1yY9EhScAkS7VJcpVhInTPXEpOweBn/+//wugD5duRPNpIDfEb2J9rKpKcQvgA==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\alhad\\Desktop\\Black_Scholes\\Black_Scholes_Call_Put_Option_Price\\C#\\C#.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\alhad\\.nuget\\packages\\mathnet.numerics\\5.0.0\\mathnet.numerics.5.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
