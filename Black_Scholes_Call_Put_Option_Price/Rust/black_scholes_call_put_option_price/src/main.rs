@@ -46,7 +46,7 @@ fn main() {
     let s = 100.0;      // Stock Price
     let k = 100.0;      // Strike
     let r = 0.02;       // Interest Rate
-    let t = 0.3;        // Time to maturity
+    let t = 3.0;        // Time to maturity
     let sigma = 0.2;    // Volatility
 
     let (call_price, put_price) = black_scholes_call_put_option_price(s, k, r, t, sigma);
