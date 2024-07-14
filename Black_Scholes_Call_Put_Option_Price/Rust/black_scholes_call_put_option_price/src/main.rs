@@ -1,5 +1,6 @@
 use std::f64::consts::E;
 use statrs::distribution::{Normal, ContinuousCDF};
+use std::io::{self, Write};
 
 /// Computes Black-Scholes Call & Put Option Prices
 ///
@@ -43,11 +44,21 @@ fn black_scholes_call_put_option_price(
 }
 
 fn main() {
-    let s = 100.0;      // Stock Price
-    let k = 100.0;      // Strike
-    let r = 0.02;       // Interest Rate
-    let t = 3.0;        // Time to maturity
-    let sigma = 0.2;    // Volatility
+
+    // Helper function to read a floating point number from the user
+    fn read_f64(prompt: &str) -> f64 {
+        let mut input = String::new();
+        print!("{}", prompt);
+        io::stdout().flush().unwrap();
+        io::stdin().read_line(&mut input).expect("Failed to read line");
+        input.trim().parse().expect("Invalid input")
+    }
+
+    let s = read_f64("Enter the stock price: ");
+    let k = read_f64("Enter the strike price: ");
+    let r = read_f64("Enter the interest rate (e.g., 0.02 for 2%): ");
+    let t = read_f64("Enter the time to maturity (in years): ");
+    let sigma = read_f64("Enter the volatility (e.g., 0.2 for 20%): ");
 
     let (call_price, put_price) = black_scholes_call_put_option_price(s, k, r, t, sigma);
     print!("{}, {}", call_price, put_price);
