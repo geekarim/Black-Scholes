@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black-Scholes Option Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; transition: background-color 0.3s, color 0.3s; }
+        .container { max-width: 600px; margin: auto; }
+        label { display: block; margin: 10px 0 5px; }
+        input { width: 100%; padding: 8px; }
+        button { margin-top: 10px; padding: 10px 20px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .result { margin-top: 20px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; }
+
+        /* Dark Mode Styles */
+        body.dark-mode { background-color: #121212; color: #ffffff; }
+        .result.dark-mode { background-color: #1e1e1e; border: 1px solid #444; }
+
+        /* Dark mode input styles */
+        body.dark-mode input {
+            background-color: #333; /* Dark background for input */
+            color: #ffffff; /* White text in the input */
+            border: 1px solid #555; /* Border for inputs */
+        }
+        body.dark-mode input::placeholder {
+            color: #aaa; /* Placeholder color */
+        }
+
+        button.dark-mode { background-color: #5a5a5a; }
+        button.dark-mode:hover { background-color: #777; }
+
+        /* Toggle Switch Styles */
+        .toggle-switch { margin: 10px 0; }
+        .toggle-switch input { display: none; }
+        .toggle-switch label {
+            cursor: pointer;
+            background-color: #ccc;
+            border-radius: 50px;
+            padding: 5px 10px;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        .toggle-switch input:checked + label {
+            background-color: #0e1af0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Black-Scholes Option Calculator</h2>
+        <div class="toggle-switch">
+            <input type="checkbox" id="darkModeToggle">
+            <label for="darkModeToggle">Toggle Dark Mode</label>
+        </div>
+        <form id="optionForm">
+            <label for="S">Stock Price (S):</label>
+            <input type="number" id="S" name="S" step="any" required placeholder="e.g., 100">
+
+            <label for="K">Strike Price (K):</label>
+            <input type="number" id="K" name="K" step="any" required placeholder="e.g., 100">
+
+            <label for="T">Time to Maturity (T in years):</label>
+            <input type="number" id="T" name="T" step="any" required placeholder="e.g., 3">
+
+            <label for="r">Risk-free Interest Rate (r):</label>
+            <input type="number" id="r" name="r" step="any" required placeholder="e.g., 0.02">
+
+            <label for="sigma">Volatility (σ):</label>
+            <input type="number" id="sigma" name="sigma" step="any" required placeholder="e.g., 0.2">
+
+            <button type="submit">Calculate Options Prices</button>
+        </form>
+
+        <div id="result" class="result" style="display: none;">
+            <p>Call Option Price: <span id="call_price"></span></p>
+            <p>Put Option Price: <span id="put_price"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle Dark Mode
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        darkModeToggle.addEventListener('change', () => {
+            document.body.classList.toggle('dark-mode');
+            const resultDiv = document.getElementById('result');
+            if (resultDiv) {
+                resultDiv.classList.toggle('dark-mode');
+            }
+            const button = document.querySelector('button');
+            if (button) {
+                button.classList.toggle('dark-mode');
+            }
+        });
+
+        document.getElementById('optionForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            // Get form values
+            const S = document.getElementById('S').value;
+            const K = document.getElementById('K').value;
+            const T = document.getElementById('T').value;
+            const r = document.getElementById('r').value;
+            const sigma = document.getElementById('sigma').value;
+
+            // Send a POST request to the Flask API
+            const response = await fetch('/black-scholes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ S, K, T, r, sigma })
+            });
+
+            // Get the response data
+            const data = await response.json();
+
+            // Display the result
+            if (response.ok) {
+                document.getElementById('call_price').textContent = data.call_price.toFixed(2);
+                document.getElementById('put_price').textContent = data.put_price.toFixed(2);
+                document.getElementById('result').style.display = 'block';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    </script>
+</body>
+</html>
