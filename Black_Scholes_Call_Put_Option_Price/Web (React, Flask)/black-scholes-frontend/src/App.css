@@ -1,0 +1,87 @@
+body {
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  margin: 50px auto;
+  width: 50%;
+  text-align: center;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align form fields to the left */
+  margin-bottom: 20px;
+}
+
+/* Align form fields with fixed label width */
+.form-group {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 10px 0;
+  width: 100%;
+  max-width: 500px; /* Adjust width based on the desired form size */
+}
+
+/* Set fixed width for labels to allow room for long text */
+label {
+  width: 200px; /* Increased width for labels */
+  margin-right: 10px;
+  text-align: right; /* Align label text to the left */
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+input {
+  width: 200px; /* Make all inputs take up the remaining space */
+  padding: 5px;
+  border: 1px solid #555;
+}
+
+button {
+  width: 200px; /* Match the width of the inputs */
+  padding: 10px 20px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #218838;
+}
+
+.result {
+  margin-top: 20px;
+}
+
+/* Dark mode styles */
+.dark {
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+.dark button {
+  background-color: #444;
+  color: #e0e0e0;
+}
+
+.dark button:hover {
+  background-color: #666;
+}
+
+.dark input {
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #555;
+}
+
+.dark h1, .dark h2 {
+  color: #fff;
+}
+
+/* Transition effect for smooth switching */
+body, input, button, h1, h2 {
+  transition: background-color 0.3s, color 0.3s;
+}
