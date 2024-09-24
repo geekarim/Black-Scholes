@@ -10,18 +10,19 @@ section .data
     Call_price dd 0.0     ; Reserve space for the Call price
     Put_price dd 0.0      ; Reserve space for the Put price
 
-    ; Utility variables 
+    ; Utility variables
     d1 dd 0.0             ; Reserve space for d1
     d2 dd 0.0             ; Reserve space for d2
 
     ; Constants
     CDF_const dd 0.044715  ; Store the constant 0.044715 in memory
-    two dd 2.0             ; Store the constant 2.0 in memory
 
     ; Output format
     fmt_Call db "Call option price: %f", 10, 0    ; Format string for printf (Call price)
     fmt_Put db "Put option price: %f", 0          ; Format string for printf (Put price)
 
+section .bss
+    ptrVar resd 1         ; Reserve space for a pointer to a float
 
 section .text
     global _WinMain@16
@@ -36,7 +37,6 @@ _WinMain@16:
 
     ; if T=0
     mov eax, [T]            ; Load value of T into eax
-    ;lea eax, [T]           ; Load value of T into eax
     mov ebx, 0              ; Load value of zero into ebx
 
     ; Compare T and zero
@@ -86,8 +86,10 @@ T_greater_zero:
     fld dword [sigma]     ; Load sigma
     fld dword [sigma]     ; Load sigma
     fmul                  ; sigma^2
-    fld dword [two]       ; Load the constant 2.0 from memory
-    fdiv                  ; Divide sigma^2 by 2.0
+    fld1                  ; Load 1.0 onto ST(0)
+    fld1                  ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                  ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fdiv                  ; sigma^2/ 2
     fld dword [r]         ; Load r
     fadd                  ; r + 0.5 * sigma^2
     fld dword [T]         ; Load T
@@ -117,697 +119,24 @@ T_greater_zero:
     ; Compute Call price
 
 
-    ; Compute the CDF (Cumulative Distribution Function) of the standard normal distribution of d1
-    ; GELU approximation
-    ; Normal CDF = 0.5 * [ 1 + tanh( sqrt(2/pi) * ( x + 0.044715 * x^3 ) ) ] for x = d1
-    ; tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
-    
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
+    lea eax, [d1]         ; Load the address of d1 into eax
+    mov [ptrVar], eax     ; Store the address in ptrVar
 
-    ; Compute 2^(mantissa)
-
-    ; Compute sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fsub                   ; exp(x) - exp(-x)
-
-
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d1^3
-    fld dword [d1]         ; Load d1
-    fadd                   ; d1 + 0.044715 * d1^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fadd                   ; exp(x) + exp(-x)
-
-    ; Compute tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
-    fdiv
-
-    ; Compute norm.cdf(d1)
-    fld1                   ; Load 1
-    fadd
-    fld dword [two]        ; Load 2
-    fdiv
-
+    call norm_cdf         ; Call norm_cdf(d1) function
 
     ; Compute S * norm.cdf(d1)
-    fld dword [S]          ; Load S
+    fld dword [S]         ; Load S
     fmul
 
 
-    ; Compute the CDF (Cumulative Distribution Function) of the standard normal distribution of d2
-    ; GELU approximation
-    ; Normal CDF = 0.5 * [ 1 + tanh( sqrt(2/pi) * ( x + 0.044715 * x^3 ) ) ] for x = d2
-    ; tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
+    lea eax, [d2]         ; Load the address of d2 into eax
+    mov [ptrVar], eax     ; Store the address in ptrVar
 
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fsub                   ; exp(x) - exp(-x)
-
-
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * d2^3
-    fld dword [d2]         ; Load d2
-    fadd                   ; d2 + 0.044715 * d2^3
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( d2 + 0.044715 * d2^3 ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fadd                   ; exp(x) + exp(-x)
-
-    ; Compute tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
-    fdiv
-
-    ; Compute norm.cdf(d2)
-    fld1                   ; Load 1
-    fadd
-    fld dword [two]        ; Load 2
-    fdiv
+    call norm_cdf         ; Call norm_cdf(d2) function
 
 
     ; Compute K * norm.cdf(d2)
-    fld dword [K]          ; Load K
+    fld dword [K]         ; Load K
     fmul
 
 
@@ -872,370 +201,14 @@ T_greater_zero:
     ; Compute Put price
 
 
-    ; Compute the CDF (Cumulative Distribution Function) of the standard normal distribution of -d2
-    ; GELU approximation
-    ; Normal CDF = 0.5 * [ 1 + tanh( sqrt(2/pi) * ( x + 0.044715 * x^3 ) ) ] for x = -d2
-    ; tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
+    lea eax, [d2]          ; Load the address of d2 into eax
+    mov [ptrVar], eax      ; Store the address of d2 in ptrVar
 
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( -d2 + 0.044715 * -d2^3 )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
+    fld dword [eax]        ; Load the float value at eax into the FPU
+    fchs                   ; Change the sign of the value in the FPU
+    fstp dword [eax]       ; Store the modified value back into eax
 
-    ; Compute 2^(mantissa)
-
-    ; Compute sqrt(2/pi) * ( -d2 + 0.044715 * -d2^3 ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * -(d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fsub                    ; exp(x) - exp(-x)
-
-
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fld dword [d2]         ; Load d2
-    fmul                   ; d2^2
-    fmul                   ; d2^3
-    fchs                   ; -d2^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d2^3)
-    fld dword [d2]         ; Load d2
-    fchs                   ; -d2
-    fadd                   ; -d2 + 0.044715 * (-d2^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d2 + 0.044715 * (-d2^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fadd                   ; exp(x) + exp(-x)
-
-    ; Compute tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
-    fdiv
-
-    ; Compute norm.cdf(-d2)
-    fld1                   ; Load 1
-    fadd
-    fld dword [two]        ; Load 2
-    fdiv
+    call norm_cdf          ; Call norm_cdf(-d2) function
 
 
     ; Compute K * norm.cdf(-d2)
@@ -1286,7 +259,7 @@ T_greater_zero:
     fdiv                   ; -r*T / ln(2)
 
     frndint                ; Round ST(0) to the nearest integer (integer part)
-    
+
     ; Compute 2^(mantissa + integer part)
     fld1                   ; Load 1
     fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
@@ -1297,370 +270,15 @@ T_greater_zero:
     fmul                   ; exp(-r*T) * K * norm.cdf(-d2)
 
 
-    ; Compute the CDF (Cumulative Distribution Function) of the standard normal distribution of -d1
-    ; GELU approximation
-    ; Normal CDF = 0.5 * [ 1 + tanh( sqrt(2/pi) * ( x + 0.044715 * x^3 ) ) ] for x = -d1
-    ; tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
+    lea eax, [d1]          ; Load the address of d1 into eax
+    mov [ptrVar], eax      ; Store the address of d1 in ptrVar
 
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
+    fld dword [eax]        ; Load the float value at eax into the FPU
+    fchs                   ; Change the sign of the value in the FPU
+    fstp dword [eax]       ; Store the modified value back into eax
 
-    ; Compute 2^(mantissa)
+    call norm_cdf          ; Call norm_cdf(-d1) function
 
-    ; Compute sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( d1 + 0.044715 * d1^3 ) / ln(2)
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fsub                   ; exp(x) - exp(-x)
-
-
-    ; exp(x) = 2^(x/ln(2))
-    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    ; Dublicate sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    ; exp(-x) = 2^(-x/ln(2))
-    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
-
-    ; Compute 2^(mantissa)
-
-    ; Compute -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    ; Dublicate -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-    fsub                   ; Subtract integer part from original
-
-    ; Compute 2^(mantissa)
-    f2xm1                  ; ST(0) = 2^(mantissa) - 1
-    fld1                   ; Load 1.0
-    fadd                   ; ST(0) = 2^(mantissa)
-
-    ; Compute 2^(integer part)
-
-    ; Dublicate -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fld dword [d1]         ; Load d1
-    fmul                   ; d1^2
-    fmul                   ; d1^3
-    fchs                   ; -d1^3
-    fld dword [CDF_const]  ; Load CDF_const
-    fmul                   ; 0.044715 * (-d1^3)
-    fld dword [d1]         ; Load d1
-    fchs                   ; -d1
-    fadd                   ; -d1 + 0.044715 * (-d1^3)
-    fld dword [two]        ; Load two
-    fldpi                  ; Load pi
-    fdiv                   ; two / pi
-    fsqrt                  ; sqrt(two / pi)
-    fmul                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) )
-    fldln2                 ; Load ln(2)
-    fdiv                   ; sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-    fchs                   ; -sqrt(2/pi) * ( -d1 + 0.044715 * (-d1^3) ) / ln(2)
-
-    frndint                ; Round ST(0) to the nearest integer (integer part)
-
-    ; Compute 2^(mantissa + integer part)
-    fld1                   ; Load 1
-    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
-    fstp                   ; Clean up the stack, leaving the result in ST(0)
-    fmul                   ; 2^(mantissa) * 2^(integer part)
-
-
-    fadd                   ; exp(x) + exp(-x)
-
-    ; Compute tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
-    fdiv
-
-    ; Compute norm.cdf(-d1)
-    fld1                   ; Load 1
-    fadd
-    fld dword [two]        ; Load 2
-    fdiv
 
     ; Compute S * norm.cdf(-d1)
     fld dword [S]          ; Load S
@@ -1695,3 +313,422 @@ end_if_T_equal_zero:
     ; Exit the program
     push 0                    ; Exit code
     call _ExitProcess@4       ; Call ExitProcess function
+
+
+norm_cdf:
+    ; Compute the CDF (Cumulative Distribution Function) of the standard normal distribution of d
+    ; GELU approximation
+    ; Normal CDF = 0.5 * [ 1 + tanh( sqrt(2/pi) * ( x + 0.044715 * x^3 ) ) ] for x = d
+    ; tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
+    
+    ; exp(x) = 2^(x/ln(2))
+    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
+
+    ; Compute 2^(mantissa)
+
+    ; Compute sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    ; Dublicate sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+    fsub                   ; Subtract integer part from original
+
+    ; Compute 2^(mantissa)
+    f2xm1                  ; ST(0) = 2^(mantissa) - 1
+    fld1                   ; Load 1.0
+    fadd                   ; ST(0) = 2^(mantissa)
+
+    ; Compute 2^(integer part)
+
+    ; Dublicate sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+
+    ; Compute 2^(mantissa + integer part)
+    fld1                   ; Load 1
+    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
+    fstp                   ; Clean up the stack, leaving the result in ST(0)
+    fmul                   ; 2^(mantissa) * 2^(integer part)
+
+
+    ; exp(-x) = 2^(-x/ln(2))
+    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
+
+    ; Compute 2^(mantissa)
+
+    ; Compute -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    fchs                   ; -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    ; Dublicate -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    fchs                   ; -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+    fsub                   ; Subtract integer part from original
+
+    ; Compute 2^(mantissa)
+    f2xm1                  ; ST(0) = 2^(mantissa) - 1
+    fld1                   ; Load 1.0
+    fadd                   ; ST(0) = 2^(mantissa)
+
+    ; Compute 2^(integer part)
+
+    ; Dublicate -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    fchs                   ; -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+
+    ; Compute 2^(mantissa + integer part)
+    fld1                   ; Load 1
+    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
+    fstp                   ; Clean up the stack, leaving the result in ST(0)
+    fmul                   ; 2^(mantissa) * 2^(integer part)
+
+
+    fsub                   ; exp(x) - exp(-x)
+
+
+    ; exp(x) = 2^(x/ln(2))
+    ; Compute 2^(x/ln(2)) for x = sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
+
+    ; Compute 2^(mantissa)
+
+    ; Compute sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    ; Dublicate sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+    fsub                   ; Subtract integer part from original
+
+    ; Compute 2^(mantissa)
+    f2xm1                  ; ST(0) = 2^(mantissa) - 1
+    fld1                   ; Load 1.0
+    fadd                   ; ST(0) = 2^(mantissa)
+
+    ; Compute 2^(integer part)
+
+    ; Dublicate sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+
+    ; Compute 2^(mantissa + integer part)
+    fld1                   ; Load 1
+    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
+    fstp                   ; Clean up the stack, leaving the result in ST(0)
+    fmul                   ; 2^(mantissa) * 2^(integer part)
+
+
+    ; exp(-x) = 2^(-x/ln(2))
+    ; Compute 2^(-x/ln(2)) for -x = -sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    ; Note 2^(mantissa + integer part) = 2^(mantissa) * 2^(integer part)
+
+    ; Compute 2^(mantissa)
+
+    ; Compute -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    fchs                   ; -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    ; Dublicate -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    fchs                   ; -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+    fsub                   ; Subtract integer part from original
+
+    ; Compute 2^(mantissa)
+    f2xm1                  ; ST(0) = 2^(mantissa) - 1
+    fld1                   ; Load 1.0
+    fadd                   ; ST(0) = 2^(mantissa)
+
+    ; Compute 2^(integer part)
+
+    ; Dublicate -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fmul                   ; d^2
+    fmul                   ; d^3
+    fld dword [CDF_const]  ; Load CDF_const
+    fmul                   ; 0.044715 * d^3
+    mov eax, [ptrVar]      ; Load the address from ptrVar
+    fld dword [eax]        ; Load the float value into the FPU stack
+    fadd                   ; d + 0.044715 * d^3
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fldpi                  ; Load pi
+    fdiv                   ; 2 / pi
+    fsqrt                  ; sqrt(2 / pi)
+    fmul                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 )
+    fldln2                 ; Load ln(2)
+    fdiv                   ; sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+    fchs                   ; -sqrt(2/pi) * ( d + 0.044715 * d^3 ) / ln(2)
+
+    frndint                ; Round ST(0) to the nearest integer (integer part)
+
+    ; Compute 2^(mantissa + integer part)
+    fld1                   ; Load 1
+    fscale                 ; ST(1) = 2^(integer part) , ( ST(0) = integer part )
+    fstp                   ; Clean up the stack, leaving the result in ST(0)
+    fmul                   ; 2^(mantissa) * 2^(integer part)
+
+
+    fadd                   ; exp(x) + exp(-x)
+
+    ; Compute tanh(x) = ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )
+    fdiv
+
+    ; Compute norm.cdf(d1)
+    fld1                   ; Load 1
+    fadd
+    fld1                   ; Load 1.0 onto ST(0)
+    fld1                   ; Load another 1.0 onto ST(0) (ST(0) = 1.0)
+    fadd                   ; ST(0) = 1.0 + 1.0 = 2.0 (now ST(0) = 2.0)
+    fdiv
+
+    ret                    ; Return
