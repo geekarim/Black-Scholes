@@ -1,0 +1,20 @@
+<h1>Black-Scholes Option Pricing Calculator</h1>
+<form method="post" action="">
+    {% csrf_token %}
+    <label for="underlying_price">Underlying Price:</label>
+    <input type="text" id="underlying_price" name="underlying_price"><br><br>
+
+    <label for="strike_price">Strike Price:</label>
+    <input type="text" id="strike_price" name="strike_price"><br><br>
+
+    <label for="time_to_expiry">Time to Expiry (in years):</label>
+    <input type="text" id="time_to_expiry" name="time_to_expiry"><br><br>
+
+    <label for="volatility">Volatility (in decimal form, e.g., 0.2):</label>
+    <input type="text" id="volatility" name="volatility"><br><br>
+
+    <label for="risk_free_rate">Risk-Free Rate (in decimal form, e.g., 0.05):</label>
+    <input type="text" id="risk_free_rate" name="risk_free_rate"><br><br>
+
+    <button type="submit">Calculate</button>
+</form>
