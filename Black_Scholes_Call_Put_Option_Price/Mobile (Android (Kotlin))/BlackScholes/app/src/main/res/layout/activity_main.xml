@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/stockPrice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Stock Price"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/strikePrice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Strike Price"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/interestRate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Interest Rate"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/timeToMaturity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Time to Maturity"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/volatility"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Volatility"
+        android:inputType="numberDecimal" />
+
+    <Button
+        android:id="@+id/calculateButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Calculate" />
+
+    <TextView
+        android:id="@+id/callPriceText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Call Price"
+        android:textSize="18sp"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/putPriceText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Put Price"
+        android:textSize="18sp"
+        android:layout_marginTop="8dp" />
+</LinearLayout>
