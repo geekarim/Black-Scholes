@@ -1,0 +1,19 @@
+FROM python:3.13.4-slim
+
+WORKDIR /app
+
+# Copy entire app source (including templates/)
+COPY black-scholes-backend/ /app/
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+EXPOSE 5000
+
+CMD ["python", "app.py"]

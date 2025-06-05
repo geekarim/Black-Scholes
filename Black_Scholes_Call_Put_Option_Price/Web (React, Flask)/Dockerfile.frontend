@@ -1,0 +1,16 @@
+FROM node:24-alpine
+
+WORKDIR /app
+
+COPY black-scholes-frontend/package*.json /app/
+RUN npm install
+
+COPY black-scholes-frontend/ /app/
+
+RUN npm run build
+
+EXPOSE 3000
+
+# Use a static server to serve React build (e.g., serve or nginx)
+RUN npm install -g serve
+CMD ["serve", "-s", "build", "-l", "3000"]
