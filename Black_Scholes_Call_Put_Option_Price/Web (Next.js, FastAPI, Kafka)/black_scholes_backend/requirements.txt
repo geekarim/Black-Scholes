@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+confluent-kafka
+scipy
+numpy
+websockets
+asyncio
+httpx

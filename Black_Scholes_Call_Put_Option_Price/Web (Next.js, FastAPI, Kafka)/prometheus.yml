@@ -1,0 +1,12 @@
+# This configuration file tells Prometheus how to scrape metrics.
+# It defines the global scrape interval and the targets (exporters) to scrape from.
+global:
+  # Default interval between metric scrapes (i.e., how often Prometheus collects data)
+  scrape_interval: 15s
+
+scrape_configs:
+  # Each scrape job defines a set of targets to collect metrics from
+  - job_name: 'kafka'  # Human-readable name for this job; used in Prometheus queries and UI
+    static_configs:
+      # List of Kafka metric exporters to scrape
+      - targets: ['kafka-exporter:9308']  # Hostname and port of the Kafka exporter container

@@ -1,0 +1,116 @@
+# 🧮 Docker Compose file for Black-Scholes Option Pricing system
+# This environment includes:
+# - Kafka (messaging queue)
+# - Backend API (FastAPI)
+# - Worker (background Black-Scholes processor)
+# - Frontend (Next.js with WebSocket support)
+# - Observability stack (Prometheus, Grafana, Kafka Exporter, UI tools)
+
+services:
+
+  # 📦 Apache Kafka (via Bitnami)
+  kafka:
+    container_name: kafka
+    image: bitnami/kafka:latest
+    ports:
+      - "9092:9092"  # Kafka broker port for producers/consumers
+    environment:
+      # Enable KRaft mode
+      - KAFKA_KRAFT_MODE=true
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_KRAFT_CLUSTER_ID=1b17368a-f1ee-4d5e-901f-9b5c0e684138  # Required for KRaft mode
+    volumes:
+      - kafka_data:/bitnami/kafka  # Persistent Kafka storage
+
+  # ⚙️ FastAPI Backend
+  backend:
+    container_name: backend
+    build: ./black_scholes_backend  # Contains FastAPI code
+    ports:
+      - "8000:8000"
+    depends_on:
+      - kafka  # Waits for Kafka to start
+
+  # 🧠 Background Worker for Option Pricing
+  worker:
+    container_name: worker
+    build: ./black_scholes_backend  # Same image as backend
+    command: ["python", "worker.py"]  # Executes Kafka-consuming worker
+    depends_on:
+      - kafka  # Needs Kafka to consume messages
+
+  # 🖥️ Next.js Frontend
+  frontend:
+    container_name: frontend
+    build: ./black_scholes_frontend  # Contains Next.js app
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000  # Used in frontend fetch
+    depends_on:
+      - backend  # Waits for API to become available
+
+  # 📊 Kafka Exporter for Prometheus metrics
+  kafka-exporter:
+    container_name: kafka_exporter
+    image: danielqsj/kafka-exporter:latest
+    ports:
+      - "9308:9308"  # Exposes metrics to Prometheus
+    environment:
+      - KAFKA_SERVER=kafka:9092
+      - KAFKA_URI=kafka:9092
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
+   # 📈 Prometheus (time-series DB for metrics)
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"  # Prometheus UI accessible here
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml  # Custom config
+
+  # 📉 Grafana (metrics dashboard)
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"  # Grafana UI at http://localhost:3001
+    depends_on:
+      - prometheus  # Uses Prometheus as data source
+
+  # 🧪 Kafka UI tool by Provectus
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui
+    ports:
+      - "8080:8080"  # Web UI at http://localhost:8080
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    depends_on:
+      - kafka
+
+  # 🔍 Redpanda Console (Kafka-compatible UI)
+  redpanda-console:
+    container_name: redpanda_console
+    image: docker.redpanda.com/redpandadata/console:latest
+    ports:
+      - "8081:8080"  # Access via http://localhost:8081
+    environment:
+      - KAFKA_BROKERS=kafka:9092
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
+# 🔁 Persistent volume for Kafka data
+volumes:
+  kafka_data:
